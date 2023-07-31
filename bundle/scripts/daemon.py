@@ -13,6 +13,7 @@ import threading
 import box
 import colorlog
 import esptool
+import esptool.util
 import pyudev
 import serial
 
@@ -178,7 +179,7 @@ def handle_cp2105(**k):
     try:
         for i in range(esptool.DEFAULT_CONNECT_ATTEMPTS):
             try:
-                esp = esptool.ESPLoader.detect_chip(
+                esp = esptool.detect_chip(
                     port=port, connect_attempts=1
                 )
             except esptool.FatalError as exc:
@@ -211,10 +212,10 @@ def handle_cp2105(**k):
         logger.log(DETECT, "Detected ESP device at %r", dev_name)
         # Now we have an ESP, let's spit out some information before proceeding
         try:
-            chip_id = esp.chip_id()
-        except esptool.NotSupportedError:
+            chip_id = esptool.chip_id(esp, None)
+        except esptool.util.NotSupportedError:
             logger.debug("Chip ID is not supported - falling back to MAC")
-            chip_id = esp.read_mac()
+            chip_id = esptool.read_mac()
         logger.debug("%r: Chip ID is %r", dev_name, chip_id)
         # Run the ESP stub and use the new ESP object from this point on
         try:
@@ -232,12 +233,14 @@ def handle_cp2105(**k):
         )
         args = box.Box(
             addr_filename=addr_fileobj_pairs,
-            no_progress=True,   # Be quiet
-            erase_all=True,     # We want entirely clean flashes
-            verify=True,        # This may be a bit slower but worth the time
-            compress=True,      # Compress the image for transfer
-            encrypt=False,      # We don't encrypt anything
-            no_stub=False,      # We pushed the stub already
+            no_progress=True,     # Be quiet
+            erase_all=True,       # We want entirely clean flashes
+            verify=True,          # This may be a bit slower but worth the time
+            compress=True,        # Compress the image for transfer
+            encrypt=False,        # We don't encrypt anything
+            encrypt_files=None,   # Ditto
+            no_stub=False,        # We pushed the stub already
+            force=False,          # KEEP FALSE. This ensures we properly check secure don't and don't accidentally brick the device.
             flash_size="keep",
             flash_mode="keep",
             flash_freq="keep",
